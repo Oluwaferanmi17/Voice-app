@@ -1,0 +1,191 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  phoneNumber   String    @unique
+  displayName   String
+  bio           String?
+  statusMessage String?
+  profilePicUrl String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  isOnline      Boolean   @default(false)
+  lastSeenAt    DateTime?
+
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+
+  friendsInitiated Friend[] @relation("FriendUserA")
+  friendsReceived  Friend[] @relation("FriendUserB")
+
+  sessions      UserSession[]
+  refreshTokens RefreshToken[]
+
+  voicePreference VoicePreference?
+
+  messagesSent Message[]
+
+  callsMade     Call[] @relation("CallsMade")
+  callsReceived Call[] @relation("CallsReceived")
+  callParticipations CallParticipant[]
+
+  expoPushToken String?
+
+  @@index([phoneNumber])
+  @@index([displayName])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+model FriendRequest {
+  id         String              @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+}
+
+model Friend {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("FriendUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model UserSession {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceId   String
+  deviceName String?
+  createdAt  DateTime @default(now())
+  lastActive DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  deviceId  String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+enum CallStatus {
+  CALLING
+  RINGING
+  CONNECTED
+  REJECTED
+  BUSY
+  MISSED
+  ENDED
+}
+
+enum CallDirection {
+  INCOMING
+  OUTGOING
+}
+
+model Call {
+  id          String     @id @default(uuid())
+  callerId    String
+  calleeId    String
+  status      CallStatus @default(CALLING)
+  startedAt   DateTime   @default(now())
+  connectedAt DateTime?
+  endedAt     DateTime?
+  duration    Int?       // seconds, computed on end
+  messages Message[]
+
+  caller       User            @relation("CallsMade", fields: [callerId], references: [id], onDelete: Cascade)
+  callee       User             @relation("CallsReceived", fields: [calleeId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+
+  @@index([callerId])
+  @@index([calleeId])
+  @@index([status])
+}
+
+model CallParticipant {
+  id       String   @id @default(uuid())
+  callId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+}
+
+enum MessageStatus {
+  SENDING
+  DELIVERED
+  FAILED
+}
+
+model Message {
+  id         String        @id @default(uuid())
+  callId     String
+  senderId   String
+  content    String
+  status     MessageStatus @default(SENDING)
+  createdAt  DateTime      @default(now())
+  deliveredAt DateTime?
+
+  call   Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([callId, createdAt])
+  @@index([senderId])
+}
+
+model VoicePreference {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  voiceId   String   @default("af_heart")
+  speed     Float    @default(1.0)
+  language  String   @default("en-US")
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
