@@ -2,15 +2,15 @@ import { prisma } from '@silent-voice/db';
 import { Server, Socket } from 'socket.io';
 import { callService } from '../services/call.service';
 import { sendPushNotification } from '../services/push.service';
-
-interface AuthedSocket extends Socket {
-  userId?: string;
-}
+import { getUserSocket, registerUserSocket, unregisterUserSocket } from './socket-registry';
 
 // Maps userId -> their currently connected socket, so we can push
 // call events directly to a specific user regardless of which
 // socket.io room abstraction we use
-const userSockets = new Map<string, AuthedSocket>();
+
+interface AuthedSocket extends Socket {
+  userId?: string;
+}
 
 // Tracks the timeout timer per call, so we can cancel it if answered in time
 const callTimers = new Map<string, NodeJS.Timeout>();
@@ -19,10 +19,10 @@ const CALL_TIMEOUT_MS = 30_000;
 
 export function registerCallGateway(io: Server, socket: AuthedSocket) {
   const userId = socket.userId!;
-  userSockets.set(userId, socket);
+  registerUserSocket(userId, socket);
 
   socket.on('disconnect', () => {
-    if (userSockets.get(userId) === socket) userSockets.delete(userId);
+    unregisterUserSocket(userId, socket);
   });
 
   socket.on('call:start', async ({ calleeId }: { calleeId: string }) => {
@@ -35,15 +35,15 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
       }
 
       // Notify the callee — via socket if connected, push notification if not
-      const calleeSocket = userSockets.get(calleeId);
+      const calleeSocket = getUserSocket(calleeId);
       const caller = await prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, displayName: true, profilePicUrl: true },
       });
 
       if (calleeSocket) {
-        calleeSocket.emit('call:incoming', { callId: call.id, caller });
         await callService.transitionCall(call.id, 'RINGING');
+        calleeSocket.emit('call:incoming', { callId: call.id, caller });
       } else {
         // Callee's app is backgrounded/closed — push notification instead
         const calleeUser = await prisma.user.findUnique({
@@ -68,7 +68,7 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
         try {
           const updated = await callService.transitionCall(call.id, 'MISSED');
           socket.emit('call:timeout', { callId: call.id });
-          userSockets.get(calleeId)?.emit('call:timeout', { callId: call.id });
+          getUserSocket(calleeId)?.emit('call:timeout', { callId: call.id });
         } catch {
           // Already transitioned (e.g. answered right at the boundary) — ignore
         } finally {
@@ -92,7 +92,7 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
       const updated = await callService.transitionCall(callId, 'CONNECTED');
 
       socket.emit('call:connected', { callId });
-      userSockets.get(call.callerId)?.emit('call:connected', { callId });
+      getUserSocket(call.callerId)?.emit('call:connected', { callId });
     } catch (err) {
       socket.emit('call:error', { message: (err as Error).message });
     }
@@ -108,7 +108,7 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
       await callService.transitionCall(callId, 'REJECTED');
 
       socket.emit('call:rejected', { callId });
-      userSockets.get(call.callerId)?.emit('call:rejected', { callId });
+      getUserSocket(call.callerId)?.emit('call:rejected', { callId });
     } catch (err) {
       socket.emit('call:error', { message: (err as Error).message });
     }
@@ -127,7 +127,7 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
 
       const otherUserId = call.callerId === userId ? call.calleeId : call.callerId;
       socket.emit('call:ended', { callId });
-      userSockets.get(otherUserId)?.emit('call:ended', { callId });
+      getUserSocket(otherUserId)?.emit('call:ended', { callId });
     } catch (err) {
       socket.emit('call:error', { message: (err as Error).message });
     }
@@ -144,7 +144,7 @@ export function registerCallGateway(io: Server, socket: AuthedSocket) {
       await callService.transitionCall(callId, 'ENDED');
 
       socket.emit('call:ended', { callId });
-      userSockets.get(call.calleeId)?.emit('call:ended', { callId });
+      getUserSocket(call.calleeId)?.emit('call:ended', { callId });
     } catch (err) {
       socket.emit('call:error', { message: (err as Error).message });
     }
