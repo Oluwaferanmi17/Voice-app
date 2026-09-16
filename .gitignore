@@ -51,3 +51,7 @@ ENV/
 __pycache__/
 *.py[cod]
 .env
+# Environment files
+.env
+.env.*
+!.env.example
