@@ -50,3 +50,4 @@ env/
 ENV/
 __pycache__/
 *.py[cod]
+.env
