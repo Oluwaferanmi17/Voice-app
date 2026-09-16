@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -51,17 +52,19 @@ export default function CallScreen() {
   const { isPlaying } = useCallAudio();
 
   useEffect(() => {
-    if (status === 'calling' || status === 'ringing') {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulse, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-          Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => loop.stop();
-    }
-  }, [status]);
+  if (status === 'calling' || status === 'ringing' || (status === 'connected' && isPlaying)) {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.08, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  } else {
+    pulse.setValue(1);
+  }
+}, [status, isPlaying]);
 
   useEffect(() => {
     if (params.mode === 'outgoing') {
@@ -154,7 +157,10 @@ export default function CallScreen() {
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
   };
 
-  const handleTextChange = (text: string) => {
+ const handleTextChange = (text: string) => {
+  if (text.length > messageText.length) {
+    Haptics.selectionAsync(); // light tick per character typed
+  }
     setMessageText(text);
     if (!callId) return;
     emitToServer('message:typing:start', { callId });

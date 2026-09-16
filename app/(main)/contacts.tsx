@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+// import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
 import {
     FlatList,
@@ -10,6 +10,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import { authedFetch } from '../../lib/api-client';
 import { theme } from '../../lib/theme';
 
 const FRIENDS_SERVICE_URL = process.env.EXPO_PUBLIC_FRIENDS_SERVICE_URL || 'http://localhost:4003';
@@ -20,11 +21,6 @@ interface Friend {
   profilePicUrl: string | null;
   isOnline: boolean;
   lastSeenAt: string | null;
-}
-
-async function authedFetch(url: string) {
-  const token = await SecureStore.getItemAsync('sv_access_token');
-  return fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 function formatLastSeen(lastSeenAt: string | null): string {
@@ -163,6 +159,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing(4),
   },
+  callButton: {
+  backgroundColor: theme.colors.accent,
+  borderRadius: theme.radius.full,
+  paddingVertical: theme.spacing(2),
+  paddingHorizontal: theme.spacing(4),
+},
+callButtonText: {
+  color: theme.colors.background,
+  fontSize: 14,
+  fontWeight: '600',
+},
   title: { ...theme.font.display, fontSize: 26, color: theme.colors.textPrimary },
   searchButton: {
     backgroundColor: theme.colors.surface,

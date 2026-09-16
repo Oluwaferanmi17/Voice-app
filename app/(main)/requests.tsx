@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+// import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
@@ -10,6 +10,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import { authedFetch } from '../../lib/api-client';
 import { theme } from '../../lib/theme';
 
 const FRIENDS_SERVICE_URL = process.env.EXPO_PUBLIC_FRIENDS_SERVICE_URL || 'http://localhost:4003';
@@ -24,17 +25,17 @@ interface SentRequest {
   receiver: { id: string; displayName: string; profilePicUrl: string | null };
 }
 
-async function authedFetch(url: string, options: RequestInit = {}) {
-  const token = await SecureStore.getItemAsync('sv_access_token');
-  return fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-}
+// async function authedFetch(url: string, options: RequestInit = {}) {
+//   const token = await SecureStore.getItemAsync('sv_access_token');
+//   return fetch(url, {
+//     ...options,
+//     headers: {
+//       'Content-Type': 'application/json',
+//       Authorization: `Bearer ${token}`,
+//       ...options.headers,
+//     },
+//   });
+// }
 
 type ActionState = 'idle' | 'working' | 'done';
 

@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import { useCallback, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -10,6 +9,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { authedFetch } from '../../lib/api-client';
 import { theme } from '../../lib/theme';
 
 const USER_SERVICE_URL = process.env.EXPO_PUBLIC_USER_SERVICE_URL || 'http://localhost:4002';
@@ -25,17 +25,17 @@ interface SearchResult {
 
 type RequestState = 'idle' | 'sending' | 'sent' | 'error';
 
-async function authedFetch(url: string, options: RequestInit = {}) {
-  const token = await SecureStore.getItemAsync('sv_access_token');
-  return fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-}
+// async function authedFetch(url: string, options: RequestInit = {}) {
+//   const token = await SecureStore.getItemAsync('sv_access_token');
+//   return fetch(url, {
+//     ...options,
+//     headers: {
+//       'Content-Type': 'application/json',
+//       Authorization: `Bearer ${token}`,
+//       ...options.headers,
+//     },
+//   });
+// }
 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
@@ -51,9 +51,15 @@ export default function SearchScreen() {
     }
     setLoading(true);
     try {
+      // const res = await authedFetch(`${USER_SERVICE_URL}/users/search?q=${encodeURIComponent(q.trim())}`);
+      // const data = await res.json();
+      // setResults(res.ok ? data : []);
       const res = await authedFetch(`${USER_SERVICE_URL}/users/search?q=${encodeURIComponent(q.trim())}`);
-      const data = await res.json();
-      setResults(res.ok ? data : []);
+console.log('[search] URL:', `${USER_SERVICE_URL}/users/search?q=${encodeURIComponent(q.trim())}`);
+console.log('[search] status:', res.status);
+const data = await res.json();
+console.log('[search] data:', JSON.stringify(data));
+setResults(res.ok ? data : []);
     } catch {
       setResults([]);
     } finally {

@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+// import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { authedFetch } from '../../lib/api-client';
 import { theme } from '../../lib/theme';
 
 const USER_SERVICE_URL = process.env.EXPO_PUBLIC_USER_SERVICE_URL || 'http://localhost:4002';
@@ -16,13 +17,13 @@ interface UserProfile {
   isOnline: boolean;
 }
 
-async function authedFetch(url: string, options: RequestInit = {}) {
-  const token = await SecureStore.getItemAsync('sv_access_token');
-  return fetch(url, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
-  });
-}
+// async function authedFetch(url: string, options: RequestInit = {}) {
+//   const token = await SecureStore.getItemAsync('sv_access_token');
+//   return fetch(url, {
+//     ...options,
+//     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
+//   });
+// }
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -77,7 +78,7 @@ export default function ProfileScreen() {
   if (!profile) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn't load this profile</Text>
+        <Text style={styles.errorText}>Couldn&apos;t load this profile</Text>
         <Pressable onPress={() => router.back()} style={styles.backLink}>
           <Text style={styles.backLinkText}>Go back</Text>
         </Pressable>

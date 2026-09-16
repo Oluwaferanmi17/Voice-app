@@ -1,3 +1,6 @@
+import { router } from "expo-router";
+import * as SecureStore from 'expo-secure-store';
+
 const AUTH_SERVICE_URL = process.env.EXPO_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
 
 async function post<T>(path: string, body: unknown, token?: string): Promise<T> {
@@ -29,3 +32,26 @@ export const authApi = {
 
   logout: (refreshToken: string) => post<{ loggedOut: boolean }>('/auth/logout', { refreshToken }),
 };
+
+export async function authedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = await SecureStore.getItemAsync('sv_access_token');
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+
+  if (res.status === 401) {
+    await Promise.all([
+      SecureStore.deleteItemAsync('sv_access_token'),
+      SecureStore.deleteItemAsync('sv_refresh_token'),
+      SecureStore.deleteItemAsync('sv_user'),
+    ]);
+    router.replace('/(auth)/phone-entry');
+  }
+
+  return res;
+}
